@@ -10,10 +10,15 @@ import dtm.loggerj.core.LoggerJ;
 public class FileLog implements LoggerJ{
 
     private int nv;
-    private String path = System.getProperty("user.dir")+"/App.log";
+    private String path = System.getProperty("user.dir");
 
     public FileLog(){
         this.nv = 0;
+    }
+
+    public FileLog(String area){
+        this.nv = 0;
+        setArea(area);
     }
 
     public FileLog(int nv){
@@ -27,26 +32,56 @@ public class FileLog implements LoggerJ{
         this.nv = nv.getValue();  
     }
 
+    public FileLog(int nv, String area){
+        this.nv = nv;
+        if(nv < 0){
+            this.nv = 0;
+        }
+        setArea(area);
+    }
+
+    public FileLog(LogType nv, String area){
+        this.nv = nv.getValue();
+        setArea(area);
+    }
+
     @Override
     public void write(String msg, LogType logType) {
-        printLog(msg, logType, null, path);
+        write(msg, logType, null, "/App.log");
     }
 
     @Override
     public void write(String msg, LogType logType, Throwable throwable) {
-        printLog(msg, logType, throwable, path);
+        write(msg, logType, throwable, "/App.log");
     }
 
     @Override
     public void write(String msg, LogType logType, String filePath) {
-        filePath = System.getProperty("user.dir") + "/" + filePath;
-        printLog(msg, logType, null, filePath);
+        write(msg, logType, null, filePath);
     }
 
     @Override
     public void write(String msg, LogType logType, Throwable throwable, String filePath) {
-        filePath = System.getProperty("user.dir") + "/" + filePath;
+        if(filePath.startsWith("/")){
+            filePath = path + filePath;
+        }else{
+            filePath = path + "/" + filePath;
+        }
         printLog(msg, logType, throwable, filePath);
+    }
+
+    public void setArea(String area){
+        if(!area.startsWith("/")){
+            path = path + "/" + area;
+        }else{
+            path = path + area;
+        }
+
+        File dir = new File(path);
+
+        if(!dir.exists()){
+            dir.mkdirs();
+        }
     }
 
     private void printLog(String msg, LogType logType, Throwable throwable, String pathFile){
