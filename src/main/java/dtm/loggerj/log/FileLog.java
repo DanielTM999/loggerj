@@ -10,7 +10,7 @@ import dtm.loggerj.core.LoggerJ;
 public class FileLog implements LoggerJ{
 
     private int nv;
-    private String path = System.getProperty("user.dir");
+    protected String path = System.getProperty("user.dir");
 
     public FileLog(){
         this.nv = 0;
@@ -84,7 +84,7 @@ public class FileLog implements LoggerJ{
         }
     }
 
-    private void printLog(String msg, LogType logType, Throwable throwable, String pathFile){
+    protected void printLog(String msg, LogType logType, Throwable throwable, String pathFile){
        new Thread(() -> {
             if(logType.getValue() >= nv){
 
@@ -108,7 +108,7 @@ public class FileLog implements LoggerJ{
        }).start();
     }
 
-    private void writeFile(String toWrite, String pathFile) throws Exception{
+    protected void writeFile(String toWrite, String pathFile) throws Exception{
         File file = new File(pathFile);
         if(!file.exists()){
             file.createNewFile();
