@@ -1,5 +1,7 @@
 package dtm.loggerj.core;
 
+import java.util.Arrays;
+
 public enum LogType {
     ERROR(2),
     WARNING(1),
@@ -13,5 +15,9 @@ public enum LogType {
 
     public int getValue() {
         return value;
+    }
+
+    public static LogType getByValue(int value, LogType defaultLogType){
+        return Arrays.asList(LogType.values()).stream().filter(type -> type.getValue() == value).findFirst().orElse(defaultLogType);
     }
 }

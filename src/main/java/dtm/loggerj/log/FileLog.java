@@ -62,14 +62,34 @@ public class FileLog implements LoggerJ{
 
     @Override
     public void write(String msg, LogType logType, Throwable throwable, String filePath) {
+        write(msg, null, logType, throwable, filePath);
+    }
+
+    @Override
+    public void write(String msg, String group, LogType logType) {
+        write(msg, group, logType, null, "/App.log");
+    }
+
+    @Override
+    public void write(String msg, String group, LogType logType, String filePath) {
+        write(msg, group, logType, null, filePath);
+    }
+
+    @Override
+    public void write(String msg, String group, LogType logType, Throwable throwable) {
+        write(msg, group, logType, throwable, "/App.log");
+    }
+
+    @Override
+    public void write(String msg, String group, LogType logType, Throwable throwable, String filePath) {
         if(filePath.startsWith("/")){
             filePath = path + filePath;
         }else{
             filePath = path + "/" + filePath;
         }
-        printLog(msg, logType, throwable, filePath);
+        printLog(msg, group, logType, throwable, filePath);
     }
-
+    
     public void setArea(String area){
         if(!area.startsWith("/")){
             path = path + "/" + area;
@@ -84,21 +104,22 @@ public class FileLog implements LoggerJ{
         }
     }
 
-    protected void printLog(String msg, LogType logType, Throwable throwable, String pathFile){
+    protected void printLog(String msg, String group, LogType logType, Throwable throwable, String pathFile){
        new Thread(() -> {
             if(logType.getValue() >= nv){
 
                 LocalDateTime now = LocalDateTime.now();
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
                 String formattedDate = now.format(formatter);
-
-                String msgBulder = "%s [%s] -> %s";
+                String groupFormated = (group == null || group.isEmpty()) ? "Default" : group;
+                
+                String msgBulder = "%s [%s:'%s'] -> %s";
 
                 if(throwable != null){
                     msgBulder += ": throwable -> "+throwable.getMessage();
                 }
                 
-                String toWrite = String.format(msgBulder, formattedDate, logType.toString(), msg);
+                String toWrite = String.format(msgBulder, formattedDate, logType.toString(), groupFormated, msg);
                 try {
                     writeFile(toWrite, pathFile);
                 } catch (Exception e) {
@@ -120,5 +141,18 @@ public class FileLog implements LoggerJ{
         }
 
     }
-    
+
+
+    //info
+    @Override
+    public void writeInfo(String msg, String group, Throwable throwable, String filePath) {
+        write(msg, group, LogType.INFO, throwable, filePath);
+    }
+
+    //error
+    @Override
+    public void writeError(String msg, String group, Throwable throwable, String filePath) {
+        write(msg, group, LogType.ERROR, throwable, filePath);
+    }
+
 }
