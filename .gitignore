@@ -1,4 +1,5 @@
 /.vscode
+/.idea
 /loggerj-1.0.jar
 /target
 Main.java
