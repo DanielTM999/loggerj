@@ -2,9 +2,12 @@ package dtm.loggerj.log;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.atomic.AtomicReference;
 
 import dtm.loggerj.core.LogType;
 import dtm.loggerj.core.LoggerJ;
+import dtm.loggerj.core.handler.HandlerObject;
+import dtm.loggerj.core.handler.WriteHandler;
 
 public class ConsoleLog implements LoggerJ {
 
@@ -61,12 +64,21 @@ public class ConsoleLog implements LoggerJ {
     }
 
     @Override
+    public void write(String msg, String group, LogType logType, WriteHandler handler) {
+        printLog(msg, group, logType, null, handler);
+    }
+
+    @Override
     public void write(String msg, String group, LogType logType, Throwable throwable, String filePath) {
         printLog(msg, group, logType, throwable);
     }
-    
 
-    private void printLog(String msg, String group, LogType logType, Throwable throwable) {
+    private void printLog(String msg, String group, LogType logType, Throwable throwable){
+        printLog(msg, group, logType, throwable, null);
+    }
+
+
+    private void printLog(String msg, String group, LogType logType, Throwable throwable, WriteHandler handler) {
         new Thread(() -> {
             if (logType.getValue() >= nv) {
                 String groupFormated = (group == null || group.isEmpty()) ? "Default" : group;
@@ -80,7 +92,44 @@ public class ConsoleLog implements LoggerJ {
                     msgBulder += ": throwable -> " + throwable.getMessage();
                 }
 
-                System.out.println(String.format(msgBulder, formattedDate, logType.toString(), groupFormated, msg));
+                final AtomicReference<String> finalMessage = new AtomicReference<>(
+                        String.format(msgBulder, formattedDate, logType.toString(), groupFormated, msg)
+                );
+
+                if (throwable != null) {
+                    finalMessage.set(finalMessage.get() + ": throwable -> " + throwable.getMessage());
+                }
+
+                if(handler != null){
+                    handler.onAction(new HandlerObject() {
+                        @Override
+                        public Object getvalue() {
+                            return finalMessage.get();
+                        }
+
+                        @Override
+                        public LogType getLogType() {
+                            return logType;
+                        }
+
+                        @Override
+                        public Throwable getThrowable() {
+                            return throwable;
+                        }
+
+                        @Override
+                        public String getGroup() {
+                            return group;
+                        }
+
+                        @Override
+                        public void setValue(Object value) {
+                            finalMessage.set(value.toString());
+                        }
+                    });
+                }
+
+                System.out.println(finalMessage);
             }
         }).start();
     }

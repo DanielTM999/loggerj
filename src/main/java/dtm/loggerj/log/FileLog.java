@@ -4,8 +4,12 @@ import java.io.File;
 import java.io.FileWriter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.atomic.AtomicReference;
+
 import dtm.loggerj.core.LogType;
 import dtm.loggerj.core.LoggerJ;
+import dtm.loggerj.core.handler.HandlerObject;
+import dtm.loggerj.core.handler.WriteHandler;
 
 public class FileLog implements LoggerJ{
 
@@ -81,6 +85,11 @@ public class FileLog implements LoggerJ{
     }
 
     @Override
+    public void write(String msg, String group, LogType logType, WriteHandler handler) {
+        printLog(msg, group, logType, null, path +"/App.log", handler);
+    }
+
+    @Override
     public void write(String msg, String group, LogType logType, Throwable throwable, String filePath) {
         if(filePath.startsWith("/")){
             filePath = path + filePath;
@@ -105,6 +114,10 @@ public class FileLog implements LoggerJ{
     }
 
     protected void printLog(String msg, String group, LogType logType, Throwable throwable, String pathFile){
+        printLog(msg, group, logType, throwable, pathFile, null);
+    }
+
+    protected void printLog(String msg, String group, LogType logType, Throwable throwable, String pathFile, WriteHandler handler){
        new Thread(() -> {
             if(logType.getValue() >= nv){
 
@@ -115,11 +128,43 @@ public class FileLog implements LoggerJ{
                 
                 String msgBulder = "%s [%s:'%s'] -> %s";
 
-                if(throwable != null){
-                    msgBulder += ": throwable -> "+throwable.getMessage();
+                final AtomicReference<String> finalMessage = new AtomicReference<>(
+                        String.format(msgBulder, formattedDate, logType.toString(), groupFormated, msg)
+                );
+
+                if (throwable != null) {
+                    finalMessage.set(finalMessage.get() + ": throwable -> " + throwable.getMessage());
                 }
-                
-                String toWrite = String.format(msgBulder, formattedDate, logType.toString(), groupFormated, msg);
+
+                if(handler != null){
+                    handler.onAction(new HandlerObject() {
+                        @Override
+                        public Object getvalue() {
+                            return finalMessage.get();
+                        }
+
+                        @Override
+                        public LogType getLogType() {
+                            return logType;
+                        }
+
+                        @Override
+                        public Throwable getThrowable() {
+                            return throwable;
+                        }
+
+                        @Override
+                        public String getGroup() {
+                            return group;
+                        }
+
+                        @Override
+                        public void setValue(Object value) {
+                            finalMessage.set(value.toString());
+                        }
+                    });
+                }
+                String toWrite = finalMessage.get();
                 try {
                     writeFile(toWrite, pathFile);
                 } catch (Exception e) {

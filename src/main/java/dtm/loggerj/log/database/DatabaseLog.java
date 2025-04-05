@@ -2,10 +2,13 @@ package dtm.loggerj.log.database;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import dtm.loggerj.core.LogType;
 import dtm.loggerj.core.LoggerJ;
+import dtm.loggerj.core.handler.HandlerObject;
+import dtm.loggerj.core.handler.WriteHandler;
 import dtm.loggerj.log.ConsoleLog;
 import dtm.loggerj.log.database.core.LogEntity;
 import dtm.loggerj.log.database.core.LogRepository;
@@ -80,8 +83,17 @@ public class DatabaseLog<S extends LogEntity> implements LoggerJ{
     }
 
     @Override
+    public void write(String msg, String group, LogType logType, WriteHandler handler) {
+        save(msg, group, logType, null, null, handler);
+    }
+
+    @Override
     public void write(String msg, String group, LogType logType, Throwable throwable, String filePath) {
-        try (ExecutorService executor =  Executors.newSingleThreadExecutor()){
+        save(msg, group, logType, throwable, filePath, null);
+    }
+
+    private void save(String msg, String group, LogType logType, Throwable throwable, String filePath, WriteHandler handler){
+        try (ExecutorService executor =  Executors.newCachedThreadPool()){
             executor.execute(() -> {
                 try{
                     if(logType.getValue() >= nv){
@@ -94,8 +106,44 @@ public class DatabaseLog<S extends LogEntity> implements LoggerJ{
                         entity.setMessage(msg);
                         entity.setThrowbleMessage((throwable != null) ? throwable.getMessage() : "");
                         entity.setLogType(logType);
-            
-                        this.repository.saveLog(entity);
+
+                        final AtomicReference<S> finalMessage = new AtomicReference<>(entity);
+
+                        if(handler != null){
+                            handler.onAction(new HandlerObject() {
+                                @Override
+                                public Object getvalue() {
+                                    return finalMessage.get();
+                                }
+
+                                @Override
+                                public LogType getLogType() {
+                                    return logType;
+                                }
+
+                                @Override
+                                public Throwable getThrowable() {
+                                    return throwable;
+                                }
+
+                                @Override
+                                public String getGroup() {
+                                    return group;
+                                }
+
+                                @SuppressWarnings({"unchecked"})
+                                @Override
+                                public void setValue(Object value) {
+                                    if(value instanceof LogEntity newValue){
+                                      try{
+                                          finalMessage.set((S)newValue);
+                                      }catch (Exception ignored){}
+                                    }
+                                }
+                            });
+                        }
+
+                        this.repository.saveLog(finalMessage.get());
                     }
                 } catch (Exception e) {
                     new ConsoleLog().writeError("Error in "+getClass(), e);
@@ -103,6 +151,5 @@ public class DatabaseLog<S extends LogEntity> implements LoggerJ{
             });
         }
     }
-
 
 }
